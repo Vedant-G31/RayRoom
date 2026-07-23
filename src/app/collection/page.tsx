@@ -1,5 +1,7 @@
+import StatsBar from "@/components/StatsBar";
 import { createClient } from "../lib/supabase/server";
 import { redirect } from "next/navigation";
+import CollectionGrid from "@/components/CollectionGrid";
 
 export default async function CollectionPage() {
     const supabase = await createClient()
@@ -8,6 +10,37 @@ export default async function CollectionPage() {
     if (!user) {
         redirect('/login')
     }
+
+    const {data: collection, error} = await supabase
+        .from('collection')
+        .select(`
+            id,
+            format, 
+            edition, 
+            is_sealed, 
+            notes, 
+            movies (
+                id,
+                tmdb_id, 
+                title,
+                year, 
+                poster_path
+            )
+        `)
+        .eq('user_id', user.id).order('id', {ascending: false})
+
+        if (error) {
+            console.error('Error fetching collection:', error)
+        }
+
+        const items = (collection ?? []).map((row) => ({
+            id: row.id,
+            format: row.format,
+            edition: row.edition, 
+            is_sealed: row.is_sealed,
+            notes: row.notes, 
+            movies: Array.isArray(row.movies) ? row.movies[0] : row.movies,
+        }))
 
     return ( 
     
@@ -23,7 +56,11 @@ export default async function CollectionPage() {
                     </button>
                 </form>
             </div>
-            {/* Rest of your collection page content */}
+            <div className="min-h-screen bg-neutral-950 text-white px-4 py-8 sm:px-8">
+                <h1 className="text-3xl font-bold mb-2">My Collection</h1>
+                <StatsBar items={items}/>
+                <CollectionGrid initialItems={items}/>
+            </div>
         
         </div>
     )
